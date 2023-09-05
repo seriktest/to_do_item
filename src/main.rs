@@ -1,23 +1,30 @@
-use crate::to_do::enums::TaskStatus;
-use crate::to_do::{ItemTypes, to_do_factory};
+use std::env;
+use processes::process_input;
+use serde_json::{Map, Value};
+use to_do::{to_do_factory, enums::TaskStatus};
+use crate::state::read_file;
 
-use crate::to_do::traits::get::Get;
-use crate::to_do::traits::delete::Delete;
-use crate::to_do::traits::edit::Edit;
 
 mod to_do;
+mod state;
+mod processes;
 
 
 fn main() {
-    let to_do_item = to_do_factory("washing", TaskStatus::DONE);
-    match to_do_item {
-        ItemTypes::Pending(item) => {
-            item.get(&item.super_struct.title);
-            item.set_to_done(&item.super_struct.title);
+    let args: Vec<String> = env::args().collect();
+    let command: &String = &args[1];
+    let title: &String = &args[2];
+    let state: Map<String, Value> = read_file("./state.json");
+    let status: String;
+    match &state.get(title) {
+        Some(result) => {
+            status = result.to_string().replace('\"', "");
         }
-        ItemTypes::Done(item) => {
-            item.get(&item.super_struct.title);
-            item.delete(&item.super_struct.title);
+        None=> {
+            status = "pending".to_owned();
         }
-    }
+    };
+    let item = to_do_factory(title, TaskStatus::from_string(status.to_uppercase()));
+    process_input(item, command.to_string(), &state);
 }
+
